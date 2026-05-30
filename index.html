@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baccarat Simulator — Macau DICJ Rules</title>
+<style>
+/* ===================== RESET & VARIABLES ===================== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080c0a;
+  --surface:#111713;
+  --surface2:#1a2119;
+  --surface3:#222e26;
+  --border:#2a3a2e;
+  --accent:#c9a84c;
+  --accent2:#e0c070;
+  --player:#2563eb;
+  --player-light:#3b82f6;
+  --banker:#dc2626;
+  --banker-light:#ef4444;
+  --tie:#16a34a;
+  --tie-light:#22c55e;
+  --text:#e0e8e2;
+  --text2:#8fa896;
+  --text3:#5a6e5e;
+  --red-road:#ef4444;
+  --blue-road:#3b82f6;
+  --radius:8px;
+  --cell:18px;
+  --gap:2px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
+button{cursor:pointer;font-family:inherit;font-size:inherit}
+input,select{font-family:inherit;font-size:inherit;color:var(--text);background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+input[type=range]{padding:0;background:transparent;border:none}
+h2,h3{font-weight:600;letter-spacing:.02em}
+
+/* ===================== LAYOUT ===================== */
+#app{display:flex;flex-direction:column;min-height:100vh}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:1.1rem;font-weight:700;color:var(--accent);letter-spacing:.04em;white-space:nowrap}
+header .subtitle{color:var(--text2);font-size:.75rem}
+main{flex:1;display:flex;flex-direction:column;gap:0}
+
+/* ===================== CONFIG SECTION ===================== */
+#config-section{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px}
+.config-grid{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.config-item{display:flex;flex-direction:column;gap:4px}
+.config-item label{font-size:.72rem;color:var(--text2);text-transform:uppercase;letter-spacing:.06em}
+.config-item input[type=number]{width:130px}
+.config-item input[type=range]{width:160px;accent-color:var(--accent)}
+.config-val{color:var(--accent);font-weight:700;font-size:.85rem;min-width:24px;display:inline-block;text-align:center}
+#run-btn{background:var(--accent);color:#0a0a0a;border:none;padding:9px 24px;border-radius:var(--radius);font-weight:700;font-size:.9rem;letter-spacing:.04em;transition:opacity .2s}
+#run-btn:hover{opacity:.88}
+#run-btn:disabled{opacity:.45;cursor:not-allowed}
+#stop-btn{background:var(--banker);color:#fff;border:none;padding:9px 16px;border-radius:var(--radius);font-weight:700;display:none}
+#progress-wrap{display:none;flex-direction:column;gap:4px;min-width:200px}
+#progress-bar-bg{background:var(--surface3);border-radius:999px;height:8px;overflow:hidden}
+#progress-bar{height:100%;background:var(--accent);border-radius:999px;width:0%;transition:width .1s}
+#progress-text{font-size:.72rem;color:var(--text2)}
+
+/* ===================== ROADS SECTION ===================== */
+#roads-section{background:var(--surface);border-bottom:1px solid var(--border)}
+.road-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);overflow-x:auto}
+.road-tab{padding:8px 14px;font-size:.78rem;font-weight:600;color:var(--text3);background:none;border:none;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s;letter-spacing:.02em}
+.road-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.road-tab:hover:not(.active){color:var(--text)}
+.road-canvas-wrap{overflow-x:auto;overflow-y:auto;max-height:200px;padding:8px}
+#road-svg{display:block}
+.road-legend{display:flex;gap:12px;padding:4px 8px 6px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:.7rem;color:var(--text2)}
+.legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+
+/* ===================== FILTER SECTION ===================== */
+#filter-section{background:var(--surface2);border-bottom:1px solid var(--border);padding:10px 16px}
+.filter-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.filter-toggle h3{font-size:.82rem;color:var(--text2)}
+.filter-toggle .arrow{color:var(--text3);transition:transform .2s;font-size:.8rem}
+.filter-toggle.open .arrow{transform:rotate(180deg)}
+#filter-body{display:none;margin-top:10px}
+#filter-body.open{display:block}
+.filter-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px;align-items:flex-start}
+.filter-group{display:flex;flex-direction:column;gap:4px}
+.filter-group label.group-label{font-size:.68rem;color:var(--text2);text-transform:uppercase;letter-spacing:.06em}
+.checkbox-row{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:20px;border:1px solid var(--border);font-size:.72rem;cursor:pointer;color:var(--text2);background:var(--surface);transition:all .15s;user-select:none}
+.chip.selected{background:var(--accent);color:#0a0a0a;border-color:var(--accent);font-weight:700}
+.chip.suit-h.selected{background:#ef4444;border-color:#ef4444;color:#fff}
+.chip.suit-d.selected{background:#f97316;border-color:#f97316;color:#fff}
+.chip.suit-c.selected{background:#22c55e;border-color:#22c55e;color:#fff}
+.chip.suit-s.selected{background:#6366f1;border-color:#6366f1;color:#fff}
+#filter-clear-btn{padding:5px 14px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:.78rem}
+#filter-apply-btn{padding:5px 14px;background:var(--accent);border:none;border-radius:var(--radius);color:#0a0a0a;font-weight:700;font-size:.78rem}
+.filter-count{font-size:.72rem;color:var(--text2);margin-left:auto;align-self:center}
+
+/* ===================== CONTENT SPLIT ===================== */
+#content-split{display:grid;grid-template-columns:1fr;gap:0}
+@media(min-width:900px){#content-split{grid-template-columns:1fr 340px}}
+
+/* ===================== HAND LOG ===================== */
+#handlog-section{border-right:1px solid var(--border)}
+.section-header{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.section-header h3{font-size:.82rem;color:var(--text2)}
+#handlog-table-wrap{overflow:auto;max-height:380px;position:relative}
+#handlog-sentinel-top{height:1px}
+#handlog-sentinel-bot{height:1px}
+table.handlog{width:100%;border-collapse:collapse;font-size:.72rem}
+table.handlog th{background:var(--surface3);padding:5px 8px;text-align:left;color:var(--text2);position:sticky;top:0;z-index:2;white-space:nowrap;font-weight:600}
+table.handlog td{padding:4px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+table.handlog tr:hover td{background:var(--surface3)}
+.outcome-P{color:var(--player-light);font-weight:700}
+.outcome-B{color:var(--banker-light);font-weight:700}
+.outcome-T{color:var(--tie-light);font-weight:700}
+.card-chip{display:inline-block;padding:1px 5px;border-radius:4px;font-size:.68rem;font-weight:700;margin:1px;border:1px solid;line-height:1.4}
+.card-chip.s-h,.card-chip.s-d{color:#ef4444;border-color:#ef4444;background:#1a0808}
+.card-chip.s-c,.card-chip.s-s{color:#aaa;border-color:#444;background:#111}
+.nat-badge{display:inline-block;padding:1px 5px;border-radius:4px;font-size:.65rem;background:#b45309;color:#fff;margin-left:4px}
+.page-controls{display:flex;gap:6px;align-items:center;padding:6px 12px;border-top:1px solid var(--border)}
+.page-controls button{padding:3px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text2);font-size:.72rem}
+.page-controls button:disabled{opacity:.35;cursor:not-allowed}
+.page-info{font-size:.72rem;color:var(--text2);margin:0 6px}
+
+/* ===================== STATS PANEL ===================== */
+#stats-section{overflow:auto;max-height:none}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)}
+.stat-card{background:var(--surface);padding:8px 12px}
+.stat-card .label{font-size:.68rem;color:var(--text2);text-transform:uppercase;letter-spacing:.05em}
+.stat-card .value{font-size:1.1rem;font-weight:700;color:var(--accent)}
+.stat-card .sub{font-size:.68rem;color:var(--text3)}
+.stat-card.wide{grid-column:1/-1}
+.stat-card.p-color .value{color:var(--player-light)}
+.stat-card.b-color .value{color:var(--banker-light)}
+.stat-card.t-color .value{color:var(--tie-light)}
+.sidebet-table{width:100%;border-collapse:collapse;font-size:.72rem;margin-top:4px}
+.sidebet-table td,.sidebet-table th{padding:3px 6px;border-bottom:1px solid var(--border);text-align:left}
+.sidebet-table th{color:var(--text2);font-weight:600}
+.sidebet-table td:last-child{color:var(--accent);font-weight:700;text-align:right}
+.streak-bar-wrap{margin-top:4px}
+.streak-label{font-size:.68rem;color:var(--text2);margin-bottom:2px}
+.streak-bars{display:flex;gap:2px;align-items:flex-end;height:40px}
+.streak-bar{flex:1;min-width:12px;border-radius:2px 2px 0 0;background:var(--player-light);position:relative;cursor:pointer}
+.streak-bar.b{background:var(--banker-light)}
+.streak-bar.t{background:var(--tie-light)}
+.streak-bar-label{font-size:.6rem;text-align:center;color:var(--text3);margin-top:2px}
+
+/* ===================== EMPTY STATE ===================== */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-state .icon{font-size:2.5rem;margin-bottom:8px}
+.empty-state p{font-size:.82rem}
+
+/* ===================== SCROLLBAR ===================== */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px}
+
+/* ===================== RESPONSIVE ===================== */
+@media(max-width:600px){
+  :root{--cell:14px;--gap:1px}
+  .config-grid{flex-direction:column}
+  .stats-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div>
+      <h1>🃏 Baccarat Simulator</h1>
+      <div class="subtitle">Macau DICJ Rules · Side Bets incl. Monkey No Monkey &amp; Pair+</div>
+    </div>
+  </header>
+
+  <!-- CONFIG -->
+  <section id="config-section">
+    <div class="config-grid">
+      <div class="config-item">
+        <label>Decks per Shoe</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="range" id="decks-range" min="1" max="20" value="8">
+          <span class="config-val" id="decks-val">8</span>
+        </div>
+      </div>
+      <div class="config-item">
+        <label>Hands to Simulate</label>
+        <input type="number" id="hands-input" min="1" max="1000000" value="10000">
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <button id="run-btn">▶ Run Simulation</button>
+        <button id="stop-btn">■ Stop</button>
+        <div id="progress-wrap">
+          <div id="progress-bar-bg"><div id="progress-bar"></div></div>
+          <div id="progress-text">0 / 0 hands</div>
+        </div>
+      </div>
+      <div id="sim-info" style="font-size:.72rem;color:var(--text2);align-self:flex-end"></div>
+    </div>
+  </section>
+
+  <!-- ROADS -->
+  <section id="roads-section">
+    <div class="road-tabs" id="road-tabs">
+      <button class="road-tab active" data-road="bead">珠盤路 Bead</button>
+      <button class="road-tab" data-road="big">大路 Big Road</button>
+      <button class="road-tab" data-road="bigeyeboy">大眼仔 Big Eye Boy</button>
+      <button class="road-tab" data-road="small">小路 Small Road</button>
+      <button class="road-tab" data-road="cockroach">曱甴路 Cockroach</button>
+    </div>
+    <div class="road-canvas-wrap">
+      <svg id="road-svg" width="0" height="0"></svg>
+    </div>
+    <div class="road-legend" id="road-legend"></div>
+  </section>
+
+  <!-- FILTER -->
+  <section id="filter-section">
+    <div class="filter-toggle" id="filter-toggle">
+      <h3>🔍 Hand Filter</h3>
+      <span class="arrow">▼</span>
+      <span class="filter-count" id="filter-count-label"></span>
+    </div>
+    <div id="filter-body">
+      <div class="filter-row">
+        <div class="filter-group">
+          <label class="group-label">Outcome</label>
+          <div class="checkbox-row" id="filter-outcome"></div>
+        </div>
+        <div class="filter-group">
+          <label class="group-label">Hand Size (total cards)</label>
+          <div class="checkbox-row" id="filter-size"></div>
+        </div>
+        <div class="filter-group">
+          <label class="group-label">Natural</label>
+          <div class="checkbox-row" id="filter-natural"></div>
+        </div>
+      </div>
+      <div class="filter-row">
+        <div class="filter-group">
+          <label class="group-label">Suit (in hand)</label>
+          <div class="checkbox-row" id="filter-suit"></div>
+        </div>
+        <div class="filter-group">
+          <label class="group-label">Card Rank (in hand)</label>
+          <div class="checkbox-row" id="filter-rank"></div>
+        </div>
+        <div class="filter-group">
+          <label class="group-label">Side</label>
+          <div class="checkbox-row" id="filter-side"></div>
+        </div>
+      </div>
+      <div class="filter-row">
+        <div class="filter-group">
+          <label class="group-label">Side Bet Hit</label>
+          <div class="checkbox-row" id="filter-sidebet"></div>
+        </div>
+      </div>
+      <div class="filter-row">
+        <button id="filter-apply-btn">Apply Filter</button>
+        <button id="filter-clear-btn">Clear</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTENT SPLIT -->
+  <div id="content-split">
+    <section id="handlog-section">
+      <div class="section-header">
+        <h3>Hand Log</h3>
+        <span id="log-count" style="font-size:.72rem;color:var(--text2)"></span>
+      </div>
+      <div id="handlog-table-wrap">
+        <div id="handlog-empty" class="empty-state"><div class="icon">🂠</div><p>Run a simulation to see results</p></div>
+        <table class="handlog" id="handlog-table" style="display:none">
+          <thead><tr>
+            <th>#</th><th>Player</th><th>Banker</th><th>Cards</th><th>Result</th><th>🐒</th><th>Side Bets</th>
+          </tr></thead>
+          <tbody id="handlog-tbody"></tbody>
+        </table>
+      </div>
+      <div class="page-controls" id="page-controls" style="display:none">
+        <button id="page-first">«</button>
+        <button id="page-prev">‹</button>
+        <span class="page-info" id="page-info"></span>
+        <button id="page-next">›</button>
+        <button id="page-last">»</button>
+        <span style="margin-left:auto;font-size:.7rem;color:var(--text3)">Rows/page:</span>
+        <select id="page-size-sel" style="padding:2px 6px;font-size:.72rem;width:60px">
+          <option value="50">50</option>
+          <option value="100" selected>100</option>
+          <option value="200">200</option>
+        </select>
+      </div>
+    </section>
+
+    <section id="stats-section">
+      <div class="section-header">
+        <h3>Analytics</h3>
+        <span id="stats-filtered-label" style="font-size:.72rem;color:var(--text2)"></span>
+      </div>
+      <div id="stats-empty" class="empty-state"><div class="icon">📊</div><p>Statistics will appear after simulation</p></div>
+      <div id="stats-body" style="display:none">
+        <div class="stats-grid" id="stats-grid"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+'use strict';
+// =================== DECK ===================
+const SUITS = ['♣','♦','♥','♠']; // 0=Clubs,1=Diamonds,2=Hearts,3=Spades
+const SUIT_NAMES = ['Clubs','Diamonds','Hearts','Spades'];
+const RANK_NAMES = ['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const MONKEY_RANKS = [10,11,12,13]; // 0-value cards
+
+function cardRank(c){return c&0xF}
+function cardSuit(c){return(c>>4)&3}
+function cardValue(c){const r=cardRank(c);return r<=9?r:0}
+function cardLabel(c){return RANK_NAMES[cardRank(c)]+SUITS[cardSuit(c)]}
+function isMonkey(c){return cardValue(c)===0}
+
+function buildShoe(numDecks){
+  const total=52*numDecks;
+  const cards=new Int32Array(total);
+  let i=0;
+  for(let d=0;d<numDecks;d++)
+    for(let s=0;s<4;s++)
+      for(let r=1;r<=13;r++)
+        cards[i++]=(s<<4)|r;
+  // Fisher-Yates shuffle
+  for(let n=total-1;n>0;n--){
+    const k=Math.floor(Math.random()*(n+1));
+    const tmp=cards[n];cards[n]=cards[k];cards[k]=tmp;
+  }
+  const cutPos=Math.floor(total*0.90);
+  return{cards,pos:0,cutPos,needReshuffle:false,shoeNum:1};
+}
+
+function drawCard(shoe){
+  const c=shoe.cards[shoe.pos++];
+  if(shoe.pos>=shoe.cutPos)shoe.needReshuffle=true;
+  return c;
+}
+
+// =================== RULES ===================
+function handTotal(cards){
+  let t=0;
+  for(let i=0;i<cards.length;i++)t+=cardValue(cards[i]);
+  return t%10;
+}
+
+// Banker third-card rule (DICJ / standard baccarat)
+function bankerDraws(bankerTotal, playerHasThird, playerThirdValue){
+  if(!playerHasThird){
+    return bankerTotal<=5;
+  }
+  const pv=playerThirdValue;
+  switch(bankerTotal){
+    case 0:case 1:case 2:return true;
+    case 3:return pv!==8;
+    case 4:return pv>=2&&pv<=7;
+    case 5:return pv>=4&&pv<=7;
+    case 6:return pv===6||pv===7;
+    case 7:return false;
+    default:return false;
+  }
+}
+
+function playHand(shoe, shoeNum, handIdx){
+  // Deal: P1,B1,P2,B2
+  const pCards=[drawCard(shoe),drawCard(shoe)];
+  const bCards=[drawCard(shoe),drawCard(shoe)];
+
+  let pTotal=handTotal(pCards);
+  let bTotal=handTotal(bCards);
+  const natural=(pTotal>=8||bTotal>=8);
+  const naturalValue=natural?(pTotal>=8&&bTotal>=8?Math.max(pTotal,bTotal):pTotal>=8?pTotal:bTotal):null;
+
+  let playerHasThird=false;
+  let playerThirdValue=null;
+
+  if(!natural){
+    // Player draws?
+    if(pTotal<=5){
+      const c=drawCard(shoe);
+      pCards.push(c);
+      playerHasThird=true;
+      playerThirdValue=cardValue(c);
+      pTotal=handTotal(pCards);
+    }
+    // Banker draws?
+    if(bankerDraws(bTotal,playerHasThird,playerThirdValue)){
+      bCards.push(drawCard(shoe));
+      bTotal=handTotal(bCards);
+    }
+  }
+
+  const outcome=pTotal>bTotal?'P':bTotal>pTotal?'B':'T';
+  const allCards=[...pCards,...bCards];
+  const totalCards=allCards.length;
+
+  // Side bets
+  const pPair=cardRank(pCards[0])===cardRank(pCards[1]);
+  const bPair=cardRank(bCards[0])===cardRank(bCards[1]);
+  const pPerfect=pPair&&cardSuit(pCards[0])===cardSuit(pCards[1]);
+  const bPerfect=bPair&&cardSuit(bCards[0])===cardSuit(bCards[1]);
+  const perfectPair=pPerfect||bPerfect;
+  const eitherPair=pPair||bPair;
+  const superSix=outcome==='B'&&bTotal===6;
+  const big=totalCards>=5;
+  const small=totalCards===4;
+  const monkeyCount=allCards.filter(isMonkey).length;
+  // Monkey No Monkey: bet on whether any 0-value card appears
+  const noMonkey=monkeyCount===0;
+  const monkey=monkeyCount>0;
+  // Pair+: any pair on either side (regardless of suit), distinct from Perfect Pair which requires same suit
+  const pairPlus=pPair||bPair;
+
+  return{
+    handIdx,shoeNum,
+    pCards,bCards,pTotal,bTotal,
+    outcome,natural,naturalValue,
+    totalCards,
+    pPair,bPair,pPerfect,bPerfect,perfectPair,eitherPair,
+    superSix,big,small,monkeyCount,noMonkey,monkey,pairPlus
+  };
+}
+
+// =================== SIM ===================
+let SIM_RESULTS=[];
+let SIM_FILTERED=[];
+let SIM_RUNNING=false;
+let SIM_STOP=false;
+
+function runSimulation(numDecks, numHands, onProgress, onDone){
+  SIM_RESULTS=[];
+  SIM_FILTERED=null;
+  SIM_RUNNING=true;
+  SIM_STOP=false;
+  let shoe=buildShoe(numDecks);
+  let done=0;
+  const CHUNK=20000;
+
+  function chunk(){
+    if(SIM_STOP){SIM_RUNNING=false;onDone(SIM_RESULTS);return;}
+    const end=Math.min(done+CHUNK,numHands);
+    for(let i=done;i<end;i++){
+      if(shoe.needReshuffle){
+        shoe=buildShoe(numDecks);
+        shoe.shoeNum=(SIM_RESULTS.length>0?SIM_RESULTS[SIM_RESULTS.length-1].shoeNum+1:1);
+      }
+      SIM_RESULTS.push(playHand(shoe,shoe.shoeNum,i));
+    }
+    done=end;
+    onProgress(done,numHands);
+    if(done<numHands)setTimeout(chunk,0);
+    else{SIM_RUNNING=false;onDone(SIM_RESULTS);}
+  }
+  setTimeout(chunk,0);
+}
+
+// =================== STATS ===================
+function computeStats(hands){
+  if(!hands||!hands.length)return null;
+  const n=hands.length;
+  let pW=0,bW=0,ties=0,nats=0,nat8=0,nat9=0;
+  let cards4=0,cards5=0,cards6=0;
+  let pPairs=0,bPairs=0,perfect=0,either=0,superSix=0,big=0,small=0,noMonkey=0,monkey=0,pairPlus=0;
+  let curOutcome='',curLen=0;
+  let longestP=0,longestB=0,longestT=0;
+  const streakDist={P:{},B:{},T:{}};
+
+  for(let i=0;i<n;i++){
+    const h=hands[i];
+    if(h.outcome==='P')pW++;
+    else if(h.outcome==='B')bW++;
+    else ties++;
+    if(h.natural){nats++;if(h.naturalValue===8)nat8++;else nat9++;}
+    if(h.totalCards===4)cards4++;
+    else if(h.totalCards===5)cards5++;
+    else cards6++;
+    if(h.pPair)pPairs++;
+    if(h.bPair)bPairs++;
+    if(h.perfectPair)perfect++;
+    if(h.eitherPair)either++;
+    if(h.superSix)superSix++;
+    if(h.big)big++;
+    if(h.small)small++;
+    if(h.noMonkey)noMonkey++;
+    if(h.monkey)monkey++;
+    if(h.pairPlus)pairPlus++;
+    // streak
+    if(h.outcome===curOutcome){curLen++;}
+    else{
+      if(curOutcome){
+        const d=streakDist[curOutcome];
+        d[curLen]=(d[curLen]||0)+1;
+        if(curOutcome==='P'&&curLen>longestP)longestP=curLen;
+        if(curOutcome==='B'&&curLen>longestB)longestB=curLen;
+        if(curOutcome==='T'&&curLen>longestT)longestT=curLen;
+      }
+      curOutcome=h.outcome;curLen=1;
+    }
+  }
+  // flush last streak
+  if(curOutcome){
+    const d=streakDist[curOutcome];
+    d[curLen]=(d[curLen]||0)+1;
+    if(curOutcome==='P'&&curLen>longestP)longestP=curLen;
+    if(curOutcome==='B'&&curLen>longestB)longestB=curLen;
+    if(curOutcome==='T'&&curLen>longestT)longestT=curLen;
+  }
+
+  const pct=(v)=>(v/n*100).toFixed(2)+'%';
+  return{
+    n,pW,bW,ties,nats,nat8,nat9,
+    cards4,cards5,cards6,
+    pPairs,bPairs,perfect,either,superSix,big,small,noMonkey,monkey,pairPlus,
+    longestP,longestB,longestT,streakDist,
+    pct:pct
+  };
+}
+
+// =================== FILTER ===================
+let FILTER_STATE={
+  outcomes:new Set(),suits:new Set(),ranks:new Set(),
+  sizes:new Set(),sides:new Set(),sidebets:new Set(),
+  natural:null
+};
+
+function applyFilter(hands, fs){
+  return hands.filter(h=>{
+    if(fs.outcomes.size&&!fs.outcomes.has(h.outcome))return false;
+    if(fs.natural===true&&!h.natural)return false;
+    if(fs.natural===false&&h.natural)return false;
+    if(fs.sizes.size&&!fs.sizes.has(h.totalCards))return false;
+    // Side bet filter
+    if(fs.sidebets.size){
+      let ok=false;
+      for(const sb of fs.sidebets){
+        if(h[sb])ok=true;
+      }
+      if(!ok)return false;
+    }
+    // Suit/rank filter
+    if(fs.suits.size||fs.ranks.size){
+      const sides=fs.sides.size?fs.sides:new Set(['p','b']);
+      let matchCards=[];
+      if(sides.has('p'))matchCards=matchCards.concat(h.pCards);
+      if(sides.has('b'))matchCards=matchCards.concat(h.bCards);
+      if(fs.suits.size){
+        let ok=false;
+        for(const c of matchCards)if(fs.suits.has(cardSuit(c)))ok=true;
+        if(!ok)return false;
+      }
+      if(fs.ranks.size){
+        let ok=false;
+        for(const c of matchCards)if(fs.ranks.has(cardRank(c)))ok=true;
+        if(!ok)return false;
+      }
+    }
+    return true;
+  });
+}
+
+// =================== ROADS ===================
+const ROAD_ROWS=6;
+
+function buildBeadPlate(hands){
+  // Simple sequential fill: 6 rows tall
+  const cells=[];
+  for(let i=0;i<hands.length;i++){
+    const col=Math.floor(i/ROAD_ROWS);
+    const row=i%ROAD_ROWS;
+    const h=hands[i];
+    cells.push({col,row,outcome:h.outcome,natural:h.natural,
+      tieOnOutcome:false,
+      pPair:h.pPair,bPair:h.bPair});
+  }
+  return cells;
+}
+
+function buildBigRoad(hands){
+  // Big Road: columns per outcome change; ties are overlaid on current cell
+  const cols=[]; // array of arrays of {outcome,natural,ties,pPair,bPair}
+  let curCol=[];
+  let lastOutcome=null;
+  let lastTies=0;
+
+  for(let i=0;i<hands.length;i++){
+    const h=hands[i];
+    if(h.outcome==='T'){
+      // Add tie marker to last non-tie cell placed
+      if(curCol.length>0){curCol[curCol.length-1].ties++;}
+      else if(cols.length>0){const c=cols[cols.length-1];if(c.length>0)c[c.length-1].ties++;}
+      // Ties before any non-tie hand are intentionally dropped (nothing to attach to)
+      continue;
+    }
+    if(lastOutcome===null||h.outcome!==lastOutcome){
+      if(curCol.length>0)cols.push(curCol);
+      curCol=[{outcome:h.outcome,natural:h.natural,ties:0,pPair:h.pPair,bPair:h.bPair}];
+      lastOutcome=h.outcome;
+    } else {
+      if(curCol.length<ROAD_ROWS){
+        curCol.push({outcome:h.outcome,natural:h.natural,ties:0,pPair:h.pPair,bPair:h.bPair});
+      } else {
+        // Wrap: new column to right
+        cols.push(curCol);
+        curCol=[{outcome:h.outcome,natural:h.natural,ties:0,pPair:h.pPair,bPair:h.bPair}];
+      }
+    }
+  }
+  if(curCol.length>0)cols.push(curCol);
+  return cols; // array of columns, each column is array of cells (max ROAD_ROWS)
+}
+
+function buildDerivedRoad(bigRoadCols, offset){
+  // offset: 1=BigEyeBoy, 2=SmallRoad, 3=Cockroach
+  // Standard algorithm: for each entry in Big Road (starting at col 1+offset):
+  //   row 0: red if prev column is as long as the reference column, blue if shorter
+  //   row>0: red if reference column has a cell at (row-1), blue if it doesn't
+  const entries=[];
+  for(let ci=1+offset;ci<bigRoadCols.length;ci++){
+    const col=bigRoadCols[ci];
+    const refCol=bigRoadCols[ci-offset-1];
+    const prevCol=bigRoadCols[ci-1];
+    for(let ri=0;ri<col.length;ri++){
+      let red;
+      if(ri===0){
+        red=(prevCol?prevCol.length:0)>=(refCol?refCol.length:0);
+      } else {
+        red=refCol&&(ri-1)<refCol.length;
+      }
+      entries.push({color:red?'red':'blue'});
+    }
+  }
+  return entries;
+}
+
+// =================== ROAD RENDERING ===================
+let CURRENT_ROAD='bead';
+let BIG_ROAD_COLS=[];
+
+function renderRoad(type, hands){
+  const svg=document.getElementById('road-svg');
+  const legend=document.getElementById('road-legend');
+  const C=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell').trim())||18;
+  const G=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--gap').trim())||2;
+  const step=C+G;
+
+  svg.innerHTML='';
+  legend.innerHTML='';
+
+  if(!hands||!hands.length){
+    svg.setAttribute('width',0);svg.setAttribute('height',0);return;
+  }
+
+  function outcomeColor(o){return o==='P'?'#2563eb':o==='B'?'#dc2626':'#16a34a'}
+
+  if(type==='bead'){
+    const cells=buildBeadPlate(hands);
+    const numCols=Math.ceil(hands.length/ROAD_ROWS);
+    const W=numCols*step+G;
+    const H=ROAD_ROWS*step+G;
+    svg.setAttribute('width',W);svg.setAttribute('height',H);
+    // Background grid lines
+    cells.forEach(({col,row,outcome,natural,pPair,bPair})=>{
+      const x=G+col*step;const y=G+row*step;
+      const r=C/2;
+      const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      circle.setAttribute('cx',x+r);circle.setAttribute('cy',y+r);
+      circle.setAttribute('r',r-1);
+      circle.setAttribute('fill',outcomeColor(outcome));
+      circle.setAttribute('opacity',natural?'1':'.8');
+      svg.appendChild(circle);
+      if(natural){
+        const ring=document.createElementNS('http://www.w3.org/2000/svg','circle');
+        ring.setAttribute('cx',x+r);ring.setAttribute('cy',y+r);
+        ring.setAttribute('r',r-1);ring.setAttribute('fill','none');
+        ring.setAttribute('stroke','#facc15');ring.setAttribute('stroke-width','2');
+        svg.appendChild(ring);
+      }
+      // Pair dots
+      if(pPair||bPair){
+        const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
+        dot.setAttribute('cx',x+C-3);dot.setAttribute('cy',y+3);
+        dot.setAttribute('r',2.5);
+        dot.setAttribute('fill',pPair?'#3b82f6':'#ef4444');
+        svg.appendChild(dot);
+      }
+    });
+    // Legend
+    legend.innerHTML=`
+      <div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div>Player</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>Banker</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>Tie</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#facc15;border-radius:0"></div>Natural ring</div>`;
+
+  } else if(type==='big'){
+    BIG_ROAD_COLS=buildBigRoad(hands);
+    const numCols=BIG_ROAD_COLS.length;
+    const W=numCols*step+G;
+    const H=ROAD_ROWS*step+G;
+    svg.setAttribute('width',W);svg.setAttribute('height',H);
+
+    BIG_ROAD_COLS.forEach((col,ci)=>{
+      col.forEach((cell,ri)=>{
+        const x=G+ci*step;const y=G+ri*step;
+        const r=C/2;
+        const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+        circle.setAttribute('cx',x+r);circle.setAttribute('cy',y+r);
+        circle.setAttribute('r',r-1);
+        circle.setAttribute('fill',outcomeColor(cell.outcome));
+        circle.setAttribute('stroke',cell.natural?'#facc15':'none');
+        circle.setAttribute('stroke-width','2');
+        svg.appendChild(circle);
+        // Tie slashes
+        if(cell.ties>0){
+          const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+          t.setAttribute('x',x+C-2);t.setAttribute('y',y+8);
+          t.setAttribute('font-size','7');t.setAttribute('fill','#22c55e');
+          t.setAttribute('font-weight','bold');
+          t.textContent=cell.ties>9?'9+':cell.ties+'T';
+          svg.appendChild(t);
+        }
+        // Pair dots
+        if(cell.pPair||cell.bPair){
+          const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
+          dot.setAttribute('cx',x+C-3);dot.setAttribute('cy',y+C-3);
+          dot.setAttribute('r',2.5);
+          dot.setAttribute('fill',cell.pPair?'#3b82f6':'#ef4444');
+          svg.appendChild(dot);
+        }
+      });
+    });
+    legend.innerHTML=`
+      <div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div>Player</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>Banker</div>
+      <div class="legend-item" style="font-size:.65rem;color:var(--text3)">Green number = Ties on that cell · Gold ring = Natural</div>`;
+
+  } else {
+    // Derived roads
+    if(!BIG_ROAD_COLS.length)BIG_ROAD_COLS=buildBigRoad(hands);
+    const offset=type==='bigeyeboy'?1:type==='small'?2:3;
+    const entries=buildDerivedRoad(BIG_ROAD_COLS,offset);
+    const perCol=ROAD_ROWS;
+    const numCols=Math.ceil(entries.length/perCol)||1;
+    const W=numCols*step+G;
+    const H=perCol*step+G;
+    svg.setAttribute('width',W);svg.setAttribute('height',H);
+
+    entries.forEach((e,i)=>{
+      const col=Math.floor(i/perCol);
+      const row=i%perCol;
+      const x=G+col*step;const y=G+row*step;
+      const r=C/2;
+      const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      circle.setAttribute('cx',x+r);circle.setAttribute('cy',y+r);
+      circle.setAttribute('r',r-1);
+      circle.setAttribute('fill',e.color==='red'?'#ef4444':'#3b82f6');
+      circle.setAttribute('opacity','.85');
+      svg.appendChild(circle);
+    });
+    legend.innerHTML=`
+      <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Red = Repeating</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Blue = Chopping</div>`;
+  }
+}
+
+// =================== HAND LOG ===================
+let LOG_PAGE=0;
+let LOG_PAGE_SIZE=100;
+let LOG_HANDS=[];
+
+function renderHandLog(hands){
+  LOG_HANDS=hands||[];
+  LOG_PAGE=0;
+  renderLogPage();
+}
+
+function renderLogPage(){
+  const n=LOG_HANDS.length;
+  const tbl=document.getElementById('handlog-table');
+  const empty=document.getElementById('handlog-empty');
+  const pc=document.getElementById('page-controls');
+
+  if(!n){tbl.style.display='none';empty.style.display='block';pc.style.display='none';
+    document.getElementById('log-count').textContent='';return;}
+
+  tbl.style.display='table';empty.style.display='none';pc.style.display='flex';
+  document.getElementById('log-count').textContent=n.toLocaleString()+' hands';
+
+  const totalPages=Math.ceil(n/LOG_PAGE_SIZE);
+  if(LOG_PAGE>=totalPages)LOG_PAGE=totalPages-1;
+  const start=LOG_PAGE*LOG_PAGE_SIZE;
+  const end=Math.min(start+LOG_PAGE_SIZE,n);
+  const slice=LOG_HANDS.slice(start,end);
+
+  const tbody=document.getElementById('handlog-tbody');
+  tbody.innerHTML='';
+  const frag=document.createDocumentFragment();
+
+  slice.forEach(h=>{
+    const tr=document.createElement('tr');
+    function renderCards(cards){
+      return cards.map(c=>{
+        const sc=cardSuit(c)===2||cardSuit(c)===1?'s-h':'s-s';
+        return`<span class="card-chip ${sc}">${RANK_NAMES[cardRank(c)]}${SUITS[cardSuit(c)]}</span>`;
+      }).join('');
+    }
+    const sideBets=[];
+    if(h.pPair)sideBets.push('<span style="color:#3b82f6;font-size:.65rem">PP</span>');
+    if(h.bPair)sideBets.push('<span style="color:#ef4444;font-size:.65rem">BP</span>');
+    if(h.perfectPair)sideBets.push('<span style="color:#facc15;font-size:.65rem">PerfP</span>');
+    if(h.superSix)sideBets.push('<span style="color:#a78bfa;font-size:.65rem">S6</span>');
+    if(h.noMonkey)sideBets.push('<span style="color:#6ee7b7;font-size:.65rem">NoMky</span>');
+    if(h.monkey)sideBets.push('<span style="color:#fbbf24;font-size:.65rem">Mky</span>');
+
+    tr.innerHTML=`
+      <td>${(h.handIdx+1).toLocaleString()}</td>
+      <td>${renderCards(h.pCards)} <span style="color:${h.pTotal>=8?'#facc15':'var(--text)'};font-weight:700;font-size:.8rem">${h.pTotal}</span></td>
+      <td>${renderCards(h.bCards)} <span style="color:${h.bTotal>=8?'#facc15':'var(--text)'};font-weight:700;font-size:.8rem">${h.bTotal}</span></td>
+      <td>${h.totalCards}</td>
+      <td><span class="outcome-${h.outcome}">${h.outcome==='P'?'Player':h.outcome==='B'?'Banker':'Tie'}</span>${h.natural?'<span class="nat-badge">Nat '+h.naturalValue+'</span>':''}</td>
+      <td style="font-size:.65rem;color:var(--text3)">${h.monkeyCount} 🐒</td>
+      <td>${sideBets.join(' ')}</td>`;
+    frag.appendChild(tr);
+  });
+  tbody.appendChild(frag);
+
+  document.getElementById('page-info').textContent=`Page ${LOG_PAGE+1} / ${totalPages}`;
+  document.getElementById('page-first').disabled=LOG_PAGE===0;
+  document.getElementById('page-prev').disabled=LOG_PAGE===0;
+  document.getElementById('page-next').disabled=LOG_PAGE>=totalPages-1;
+  document.getElementById('page-last').disabled=LOG_PAGE>=totalPages-1;
+}
+
+// =================== STATS RENDERING ===================
+function renderStats(stats, isFiltered){
+  const body=document.getElementById('stats-body');
+  const empty=document.getElementById('stats-empty');
+  const filtLabel=document.getElementById('stats-filtered-label');
+
+  if(!stats){body.style.display='none';empty.style.display='block';filtLabel.textContent='';return;}
+  body.style.display='block';empty.style.display='none';
+  filtLabel.textContent=isFiltered?'(filtered)':'';
+
+  const grid=document.getElementById('stats-grid');
+  const {n,pW,bW,ties,nats,nat8,nat9,cards4,cards5,cards6,
+    pPairs,bPairs,perfect,either,superSix,big,small,noMonkey,monkey,pairPlus,
+    longestP,longestB,longestT,streakDist,pct}=stats;
+
+  // Streak distribution top 8
+  function topStreaks(dist){
+    const keys=Object.keys(dist).map(Number).sort((a,b)=>a-b).slice(0,8);
+    const max=Math.max(...keys.map(k=>dist[k]));
+    return keys.map(k=>({len:k,count:dist[k],pct:dist[k]/max}));
+  }
+  const pStreaks=topStreaks(streakDist.P||{});
+  const bStreaks=topStreaks(streakDist.B||{});
+
+  function streakBarsHTML(streaks, cls){
+    if(!streaks.length)return '<span style="color:var(--text3);font-size:.7rem">—</span>';
+    return`<div class="streak-bars">${streaks.map(s=>`
+      <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+        <div class="streak-bar ${cls}" style="height:${Math.max(4,s.pct*36)}px" title="${s.len} in a row: ${s.count}x"></div>
+        <div class="streak-bar-label">${s.len}</div>
+      </div>`).join('')}</div>`;
+  }
+
+  grid.innerHTML=`
+    <div class="stat-card wide" style="display:flex;gap:16px;flex-wrap:wrap">
+      <div><div class="label">Total Hands</div><div class="value">${n.toLocaleString()}</div></div>
+      <div><div class="label">Shoes Used</div><div class="value">${SIM_RESULTS.length?SIM_RESULTS[SIM_RESULTS.length-1].shoeNum:'-'}</div></div>
+      <div><div class="label">Naturals</div><div class="value" style="color:#facc15">${nats.toLocaleString()}</div><div class="sub">${pct(nats)} · N8:${nat8} N9:${nat9}</div></div>
+    </div>
+    <div class="stat-card p-color">
+      <div class="label">Player Wins</div>
+      <div class="value">${pW.toLocaleString()}</div>
+      <div class="sub">${pct(pW)}</div>
+    </div>
+    <div class="stat-card b-color">
+      <div class="label">Banker Wins</div>
+      <div class="value">${bW.toLocaleString()}</div>
+      <div class="sub">${pct(bW)} (excl Tie: ${(bW/(pW+bW)*100).toFixed(2)}%)</div>
+    </div>
+    <div class="stat-card t-color">
+      <div class="label">Ties</div>
+      <div class="value">${ties.toLocaleString()}</div>
+      <div class="sub">${pct(ties)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Hand Sizes</div>
+      <div class="value" style="font-size:.85rem;color:var(--text)">
+        4: ${cards4.toLocaleString()} (${pct(cards4)})<br>
+        5: ${cards5.toLocaleString()} (${pct(cards5)})<br>
+        6: ${cards6.toLocaleString()} (${pct(cards6)})
+      </div>
+    </div>
+    <div class="stat-card wide">
+      <div class="label" style="margin-bottom:6px">Side Bet Frequencies</div>
+      <table class="sidebet-table">
+        <tr><th>Side Bet</th><th>Hits</th><th>Rate</th></tr>
+        <tr><td>Player Pair</td><td>${pPairs.toLocaleString()}</td><td>${pct(pPairs)}</td></tr>
+        <tr><td>Banker Pair</td><td>${bPairs.toLocaleString()}</td><td>${pct(bPairs)}</td></tr>
+        <tr><td>Either Pair</td><td>${either.toLocaleString()}</td><td>${pct(either)}</td></tr>
+        <tr><td>Perfect Pair (suited)</td><td>${perfect.toLocaleString()}</td><td>${pct(perfect)}</td></tr>
+        <tr><td>Pair+ (any pair, either side)</td><td>${pairPlus.toLocaleString()}</td><td>${pct(pairPlus)}</td></tr>
+        <tr><td>Super Six</td><td>${superSix.toLocaleString()}</td><td>${pct(superSix)}</td></tr>
+        <tr><td>Big (5-6 cards)</td><td>${big.toLocaleString()}</td><td>${pct(big)}</td></tr>
+        <tr><td>Small (4 cards)</td><td>${small.toLocaleString()}</td><td>${pct(small)}</td></tr>
+        <tr><td>Monkey (has 0-val)</td><td>${monkey.toLocaleString()}</td><td>${pct(monkey)}</td></tr>
+        <tr><td>No Monkey (none 0-val)</td><td>${noMonkey.toLocaleString()}</td><td>${pct(noMonkey)}</td></tr>
+      </table>
+    </div>
+    <div class="stat-card">
+      <div class="label">Longest Streaks</div>
+      <div style="font-size:.78rem;margin-top:4px">
+        <div style="color:var(--player-light)">Player: ${longestP}</div>
+        <div style="color:var(--banker-light)">Banker: ${longestB}</div>
+        <div style="color:var(--tie-light)">Tie: ${longestT}</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Player Streak Distribution</div>
+      ${streakBarsHTML(pStreaks,'')}
+    </div>
+    <div class="stat-card">
+      <div class="label">Banker Streak Distribution</div>
+      ${streakBarsHTML(bStreaks,'b')}
+    </div>`;
+}
+
+// =================== FILTER UI ===================
+function buildFilterUI(){
+  // Outcomes
+  const outcomeEl=document.getElementById('filter-outcome');
+  [['P','Player','#2563eb'],['B','Banker','#dc2626'],['T','Tie','#16a34a']].forEach(([v,l,c])=>{
+    const chip=document.createElement('div');
+    chip.className='chip';chip.dataset.group='outcomes';chip.dataset.val=v;
+    chip.style.cssText=`color:${c};border-color:${c}`;
+    chip.textContent=l;
+    chip.addEventListener('click',()=>toggleChip(chip,'outcomes',v));
+    outcomeEl.appendChild(chip);
+  });
+
+  // Sizes
+  const sizeEl=document.getElementById('filter-size');
+  [[4,'4 cards'],[5,'5 cards'],[6,'6 cards']].forEach(([v,l])=>{
+    const chip=document.createElement('div');
+    chip.className='chip';chip.dataset.group='sizes';chip.dataset.val=v;
+    chip.textContent=l;
+    chip.addEventListener('click',()=>toggleChip(chip,'sizes',v));
+    sizeEl.appendChild(chip);
+  });
+
+  // Natural
+  const natEl=document.getElementById('filter-natural');
+  [['yes','Natural','true'],['no','Non-natural','false']].forEach(([k,l,v])=>{
+    const chip=document.createElement('div');
+    chip.className='chip';chip.dataset.group='natural';chip.dataset.val=v;
+    chip.textContent=l;
+    chip.addEventListener('click',()=>{
+      document.querySelectorAll('[data-group=natural]').forEach(c=>{c.classList.remove('selected')});
+      if(FILTER_STATE.natural===JSON.parse(v)){FILTER_STATE.natural=null;}
+      else{chip.classList.add('selected');FILTER_STATE.natural=JSON.parse(v);}
+    });
+    natEl.appendChild(chip);
+  });
+
+  // Suits
+  const suitEl=document.getElementById('filter-suit');
+  [[0,'♣ Clubs','suit-c'],[1,'♦ Diamonds','suit-d'],[2,'♥ Hearts','suit-h'],[3,'♠ Spades','suit-s']].forEach(([v,l,cls])=>{
+    const chip=document.createElement('div');
+    chip.className=`chip ${cls}`;chip.dataset.group='suits';chip.dataset.val=v;
+    chip.textContent=l;
+    chip.addEventListener('click',()=>toggleChip(chip,'suits',v));
+    suitEl.appendChild(chip);
+  });
+
+  // Ranks
+  const rankEl=document.getElementById('filter-rank');
+  const rankGroups=[[1,'A'],[2,'2'],[3,'3'],[4,'4'],[5,'5'],[6,'6'],[7,'7'],[8,'8'],[9,'9'],[10,'10'],[11,'J'],[12,'Q'],[13,'K']];
+  rankGroups.forEach(([v,l])=>{
+    const chip=document.createElement('div');
+    chip.className='chip';chip.dataset.group='ranks';chip.dataset.val=v;
+    chip.textContent=l;
+    chip.addEventListener('click',()=>toggleChip(chip,'ranks',v));
+    rankEl.appendChild(chip);
+  });
+
+  // Side
+  const sideEl=document.getElementById('filter-side');
+  [['p','Player'],['b','Banker']].forEach(([v,l])=>{
+    const chip=document.createElement('div');
+    chip.className='chip';chip.dataset.group='sides';chip.dataset.val=v;
+    chip.textContent=l;
+    chip.addEventListener('click',()=>toggleChip(chip,'sides',v));
+    sideEl.appendChild(chip);
+  });
+
+  // Side bets
+  const sbEl=document.getElementById('filter-sidebet');
+  [['pPair','P Pair'],['bPair','B Pair'],['perfectPair','Perfect Pair'],['eitherPair','Either Pair'],
+   ['superSix','Super 6'],['big','Big'],['small','Small'],['noMonkey','No Monkey'],['monkey','Monkey'],['pairPlus','Pair+'],
+   ['natural','Natural']].forEach(([v,l])=>{
+    const chip=document.createElement('div');
+    chip.className='chip';chip.dataset.group='sidebets';chip.dataset.val=v;
+    chip.textContent=l;
+    chip.addEventListener('click',()=>toggleChip(chip,'sidebets',v));
+    sbEl.appendChild(chip);
+  });
+}
+
+function toggleChip(chip, group, val){
+  const numVal=isNaN(val)?val:Number(val);
+  const set=FILTER_STATE[group];
+  if(!(set instanceof Set))return;
+  if(set.has(numVal)){set.delete(numVal);chip.classList.remove('selected');}
+  else{set.add(numVal);chip.classList.add('selected');}
+}
+
+function clearFilter(){
+  FILTER_STATE={outcomes:new Set(),suits:new Set(),ranks:new Set(),
+    sizes:new Set(),sides:new Set(),sidebets:new Set(),natural:null};
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('filter-count-label').textContent='';
+  SIM_FILTERED=null;
+  refresh(SIM_RESULTS);
+}
+
+function isFilterActive(){
+  const fs=FILTER_STATE;
+  return fs.outcomes.size||fs.suits.size||fs.ranks.size||
+    fs.sizes.size||fs.sides.size||fs.sidebets.size||fs.natural!==null;
+}
+
+// =================== REFRESH / RENDER ALL ===================
+function refresh(hands){
+  const active=isFilterActive();
+  const displayHands=active&&SIM_FILTERED?SIM_FILTERED:hands;
+  renderRoad(CURRENT_ROAD, displayHands);
+  renderHandLog(displayHands);
+  const stats=computeStats(displayHands);
+  renderStats(stats, active);
+}
+
+// =================== UI WIRING ===================
+document.addEventListener('DOMContentLoaded',()=>{
+  buildFilterUI();
+
+  // Deck slider
+  const decksRange=document.getElementById('decks-range');
+  const decksVal=document.getElementById('decks-val');
+  decksRange.addEventListener('input',()=>decksVal.textContent=decksRange.value);
+
+  // Road tabs
+  document.getElementById('road-tabs').addEventListener('click',e=>{
+    const btn=e.target.closest('.road-tab');
+    if(!btn)return;
+    document.querySelectorAll('.road-tab').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active');
+    CURRENT_ROAD=btn.dataset.road;
+    // Rebuild Big Road cols if switching to derived roads
+    if(CURRENT_ROAD!=='big'&&CURRENT_ROAD!=='bead'){
+      BIG_ROAD_COLS=buildBigRoad(SIM_FILTERED||SIM_RESULTS);
+    }
+    renderRoad(CURRENT_ROAD, SIM_FILTERED||SIM_RESULTS);
+  });
+
+  // Filter toggle
+  document.getElementById('filter-toggle').addEventListener('click',()=>{
+    const body=document.getElementById('filter-body');
+    const tog=document.getElementById('filter-toggle');
+    body.classList.toggle('open');
+    tog.classList.toggle('open');
+  });
+
+  // Filter apply
+  document.getElementById('filter-apply-btn').addEventListener('click',()=>{
+    if(!SIM_RESULTS.length)return;
+    if(isFilterActive()){
+      SIM_FILTERED=applyFilter(SIM_RESULTS,FILTER_STATE);
+      document.getElementById('filter-count-label').textContent=
+        `${SIM_FILTERED.length.toLocaleString()} / ${SIM_RESULTS.length.toLocaleString()} hands`;
+    } else {
+      SIM_FILTERED=null;
+    }
+    BIG_ROAD_COLS=[];
+    refresh(SIM_RESULTS);
+  });
+
+  document.getElementById('filter-clear-btn').addEventListener('click',clearFilter);
+
+  // Pagination
+  document.getElementById('page-first').addEventListener('click',()=>{LOG_PAGE=0;renderLogPage();});
+  document.getElementById('page-prev').addEventListener('click',()=>{if(LOG_PAGE>0){LOG_PAGE--;renderLogPage();}});
+  document.getElementById('page-next').addEventListener('click',()=>{LOG_PAGE++;renderLogPage();});
+  document.getElementById('page-last').addEventListener('click',()=>{LOG_PAGE=Math.ceil(LOG_HANDS.length/LOG_PAGE_SIZE)-1;renderLogPage();});
+  document.getElementById('page-size-sel').addEventListener('change',e=>{LOG_PAGE_SIZE=parseInt(e.target.value);LOG_PAGE=0;renderLogPage();});
+
+  // Stop button
+  document.getElementById('stop-btn').addEventListener('click',()=>{SIM_STOP=true;});
+
+  // Run simulation
+  document.getElementById('run-btn').addEventListener('click',()=>{
+    const numDecks=parseInt(decksRange.value)||8;
+    const numHandsRaw=parseInt(document.getElementById('hands-input').value)||10000;
+    const numHands=Math.min(Math.max(1,numHandsRaw),1000000);
+    document.getElementById('hands-input').value=numHands;
+
+    const runBtn=document.getElementById('run-btn');
+    const stopBtn=document.getElementById('stop-btn');
+    const progressWrap=document.getElementById('progress-wrap');
+    const progressBar=document.getElementById('progress-bar');
+    const progressText=document.getElementById('progress-text');
+    const simInfo=document.getElementById('sim-info');
+
+    runBtn.disabled=true;
+    stopBtn.style.display='inline-block';
+    progressWrap.style.display='flex';
+    progressBar.style.width='0%';
+    progressText.textContent='Starting…';
+    simInfo.textContent='';
+
+    const t0=performance.now();
+
+    BIG_ROAD_COLS=[];
+    SIM_FILTERED=null;
+    clearFilter();
+
+    runSimulation(numDecks,numHands,(done,total)=>{
+      const pct=done/total*100;
+      progressBar.style.width=pct+'%';
+      progressText.textContent=`${done.toLocaleString()} / ${total.toLocaleString()} hands`;
+    },(results)=>{
+      const elapsed=((performance.now()-t0)/1000).toFixed(2);
+      runBtn.disabled=false;
+      stopBtn.style.display='none';
+      progressWrap.style.display='none';
+      const shoeCount=results.length?results[results.length-1].shoeNum:0;
+      simInfo.textContent=`${results.length.toLocaleString()} hands · ${shoeCount} shoe${shoeCount!==1?'s':''} · ${elapsed}s`;
+      refresh(results);
+    });
+  });
+});
+</script>
+</body>
+</html>
